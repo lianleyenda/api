@@ -67,3 +67,52 @@ def artista(id):
           'Name': fila['Name'],
           'url': url_for('artista', id=id, _external=True)}
    return jsonify(res)
+
+
+
+@app.route("/api/albums")
+def albums():
+    args = request.args
+    pagina = int(args.get('page', '1'))
+    descartar = (pagina-1) * resultados_por_pag
+    db = abrirConexion()
+    cursor = db.cursor()
+    cursor.execute("SELECT COUNT(*) AS cant FROM albums;")
+    cant = cursor.fetchone()['cant']
+    paginas = ceil(cant / resultados_por_pag)
+
+    if pagina < 1 or pagina > paginas:
+       return f"Página inexistente: {pagina}", 400
+
+    cursor.execute(""" SELECT AlbumId, Title 
+                        FROM albums LIMIT ? OFFSET ?; """, 
+                        (resultados_por_pag,descartar))
+    lista = cursor.fetchall()
+    cerrarConexion()
+    siguiente = None
+    anterior = None
+    if pagina > 1:
+       anterior = url_for('albums', page=pagina-1, _external=True)
+    if pagina < paginas:
+       siguiente = url_for('albums', page=pagina+1, _external=True)
+    info = { 'count' : cant, 'pages': paginas,
+             'next' : siguiente, 'prev' : anterior }
+    res = { 'info' : info, 'results' : lista}
+    return jsonify(res)
+
+
+@app.route("/api/albums/<int:id>")
+def almbums(id):
+   db = abrirConexion()
+
+   db = abrirConexion()
+   cursor = db.execute("""SELECT AlbumId, Title FROM albums 
+                           WHERE AlbumId = ?""", (id,))
+   fila = cursor.fetchone()
+   cerrarConexion()
+   if fila == None:
+      return f"Artista inexistente (id: {id})", 404
+   res = {'AlbumId' : fila['AlbumId'],
+          'Title': fila['Title'],
+          'url': url_for('albums', id=id, _external=True)}
+   return jsonify(res)
